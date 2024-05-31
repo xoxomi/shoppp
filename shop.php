@@ -12,19 +12,26 @@ if (!isset($user_id)) {
 }
 
 if (isset($_POST['add_to_cart'])) {
-    $product_name = $_POST['product_name'];
-    $product_price = $_POST['product_price'];
-    $product_image = $_POST['product_image'];
+    $product_name = mysqli_real_escape_string($conn, $_POST['product_name']);
+    $product_price = mysqli_real_escape_string($conn, $_POST['product_price']);
+    $product_image = mysqli_real_escape_string($conn, $_POST['product_image']);
     $product_quantity = 1; // Default quantity set to 1
 
-    $check_cart_numbers = mysqli_query($conn, "SELECT * FROM `cart` WHERE name = '$product_name' AND user_id = '$user_id'") or die('query failed');
+    $stmt = $conn->prepare("SELECT * FROM `cart` WHERE name = ? AND user_id = ?");
+    $stmt->bind_param("si", $product_name, $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-    if (mysqli_num_rows($check_cart_numbers) > 0) {
+    if ($result->num_rows > 0) {
         $message[] = 'already added to cart!';
     } else {
-        mysqli_query($conn, "INSERT INTO `cart` (user_id, name, price, quantity, image) VALUES ('$user_id', '$product_name', '$product_price', '$product_quantity', '$product_image')") or die('query failed');
+        $stmt = $conn->prepare("INSERT INTO `cart` (user_id, name, price, quantity, image) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("isdis", $user_id, $product_name, $product_price, $product_quantity, $product_image);
+        $stmt->execute();
         $message[] = 'product added to cart!';
     }
+
+    $stmt->close();
 }
 
 ?>
@@ -60,17 +67,18 @@ if (isset($_POST['add_to_cart'])) {
    <div class="box-container">
 
       <?php  
-         $select_products = mysqli_query($conn, "SELECT * FROM `products`") or die('query failed');
-         if (mysqli_num_rows($select_products) > 0) {
-            while ($fetch_products = mysqli_fetch_assoc($select_products)) {
+         $select_products = $conn->query("SELECT * FROM `products`");
+
+         if ($select_products->num_rows > 0) {
+            while ($fetch_products = $select_products->fetch_assoc()) {
       ?>
      <form action="" method="post" class="box">
-      <img class="image" src="uploaded_img/<?php echo $fetch_products['image']; ?>" alt="">
-      <div class="name"><?php echo $fetch_products['name']; ?></div>
-      <div class="price">₱<?php echo $fetch_products['price']; ?>/-</div>
-      <input type="hidden" name="product_name" value="<?php echo $fetch_products['name']; ?>">
-      <input type="hidden" name="product_price" value="<?php echo $fetch_products['price']; ?>">
-      <input type="hidden" name="product_image" value="<?php echo $fetch_products['image']; ?>">
+      <img class="image" src="uploaded_img/<?php echo htmlspecialchars($fetch_products['image']); ?>" alt="">
+      <div class="name"><?php echo htmlspecialchars($fetch_products['name']); ?></div>
+      <div class="price">₱<?php echo htmlspecialchars($fetch_products['price']); ?>/-</div>
+      <input type="hidden" name="product_name" value="<?php echo htmlspecialchars($fetch_products['name']); ?>">
+      <input type="hidden" name="product_price" value="<?php echo htmlspecialchars($fetch_products['price']); ?>">
+      <input type="hidden" name="product_image" value="<?php echo htmlspecialchars($fetch_products['image']); ?>">
       <input type="submit" value="Add to Cart" name="add_to_cart" class="btn">
      </form>
       <?php
